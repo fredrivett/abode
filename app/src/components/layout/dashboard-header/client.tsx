@@ -24,7 +24,6 @@ import type { ReactNode } from "react";
 import { useEffect } from "react";
 
 import { SaveAsRoomButton } from "@/app/(app)/dashboard/_components/save-as-room-button";
-import { AbodeLogo } from "@/components/abode-logo";
 import { SignOutForm } from "@/components/auth/sign-out-form";
 import { UserAvatar } from "@/components/avatar/user-avatar";
 import { ChecklistPopover } from "@/components/checklist";
@@ -56,6 +55,12 @@ import {
   type UserProfile,
   useUserStore,
 } from "@/stores/user-store";
+import {
+  HeaderActions,
+  HeaderBar,
+  HeaderLogo,
+  HeaderSearchSlot,
+} from "./frame";
 
 type NavItem = {
   href: string;
@@ -83,7 +88,7 @@ function HeaderSearchSection() {
   const { filterOptions, getFilterValuesForType } = useFilterOptions();
 
   return (
-    <div className="order-3 flex w-full basis-full items-center gap-2 lg:order-2 lg:w-auto lg:min-w-48 lg:flex-1 lg:basis-auto">
+    <HeaderSearchSlot>
       <div className="flex-1">
         <SearchInput
           value={searchState}
@@ -109,7 +114,7 @@ function HeaderSearchSection() {
           <SaveAsRoomButton searchState={searchState} />
         </div>
       )}
-    </div>
+    </HeaderSearchSlot>
   );
 }
 
@@ -292,17 +297,8 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
   const logoHref = isAuthenticated ? "/dashboard" : "/";
 
   return (
-    <header className="sticky top-0 z-50 flex w-full flex-wrap items-start gap-x-4 gap-y-3 bg-background p-4 lg:flex-nowrap lg:gap-y-0 xl:gap-x-8">
-      <div className="relative order-1 flex h-8 shrink-0 items-center">
-        <h1>
-          <Link
-            href={logoHref}
-            className="-m-3 flex p-3 opacity-50 transition-opacity hover:opacity-100"
-          >
-            <span className="sr-only">abode</span>
-            <AbodeLogo className="h-6 w-auto text-foreground" aria-hidden />
-          </Link>
-        </h1>
+    <HeaderBar>
+      <HeaderLogo href={logoHref}>
         {showHomeLink && (
           <Link
             href={isAuthenticated ? "/dashboard" : "/"}
@@ -315,9 +311,9 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
             </span>
           </Link>
         )}
-      </div>
+      </HeaderLogo>
 
-      <div className="order-2 xs:order-3 ml-auto flex h-8 shrink-0 items-center gap-2">
+      <HeaderActions>
         {isAuthenticated ? (
           <>
             <Tooltip>
@@ -538,7 +534,7 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
             </Button>
           </>
         )}
-      </div>
+      </HeaderActions>
 
       {/* Center slot: custom content, search input, or nothing */}
       {centerSlot ? (
@@ -548,6 +544,6 @@ export function DashboardHeaderClient(props: DashboardHeaderClientProps) {
       ) : (
         showSearch && isAuthenticated && <HeaderSearchSection />
       )}
-    </header>
+    </HeaderBar>
   );
 }
