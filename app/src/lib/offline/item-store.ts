@@ -36,6 +36,8 @@ export type OfflineItemStore = {
    */
   putItems: (items: Item[]) => Promise<void>;
   removeItems: (ids: string[]) => Promise<void>;
+  /** One stored item, or null when it isn't stored (or the store isn't this user's) */
+  getItem: (id: string) => Promise<Item | null>;
   countItems: () => Promise<number>;
   listIds: () => Promise<string[]>;
   getSyncState: () => Promise<SyncState | null>;
@@ -152,6 +154,13 @@ export async function openOfflineItemStore(
       const cards = tx.objectStore(CARDS);
       for (const id of ids) cards.delete(id);
       await committed(tx);
+    },
+
+    async getItem(id) {
+      const tx = await ownedTransaction("readonly");
+      if (!tx) return null;
+      const item: Item | undefined = await done(tx.objectStore(CARDS).get(id));
+      return item ?? null;
     },
 
     async countItems() {

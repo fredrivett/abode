@@ -26,11 +26,35 @@ vi.mock("@/lib/offline/sync", () => ({
   withSyncLock: (task: () => Promise<void>) => task(),
 }));
 
-import { OfflineLibrarySync } from "./offline-library-sync";
+import { useOfflineLibrary } from "@/lib/offline/offline-library-context";
+import { OfflineLibraryProvider } from "./offline-library-provider";
 
-const store = () => ({ putItems: vi.fn(async () => {}), close: vi.fn() });
+let provided: ReturnType<typeof useOfflineLibrary> = null;
+function Reader() {
+  provided = useOfflineLibrary();
+  return null;
+}
+function OfflineLibrarySync() {
+  return (
+    <OfflineLibraryProvider>
+      <Reader />
+    </OfflineLibraryProvider>
+  );
+}
 
-describe("OfflineLibrarySync", () => {
+const store = (lastSyncedAt: string | null = null) => {
+  let state = lastSyncedAt && { cursor: "c", lastSyncedAt };
+  return {
+    putItems: vi.fn(async () => {}),
+    close: vi.fn(),
+    getSyncState: vi.fn(async () => state),
+    finishSync: (at: string) => {
+      state = { cursor: "c", lastSyncedAt: at };
+    },
+  };
+};
+
+describe("OfflineLibraryProvider", () => {
   beforeEach(() => {
     vi.stubGlobal("requestIdleCallback", (run: () => void) => run());
     m.sync.mockResolvedValue({
@@ -42,8 +66,10 @@ describe("OfflineLibrarySync", () => {
   });
 
   afterEach(() => {
+    provided = null;
     useUserStore.getState().clearUser();
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
     vi.clearAllMocks();
   });
 
@@ -97,6 +123,59 @@ describe("OfflineLibrarySync", () => {
     expect(opened.putItems).toHaveBeenCalledWith([
       expect.objectContaining({ id: "a", articleDetails: { content: null } }),
     ]);
+  });
+
+  it("provides the library only once a sync round has finished", async () => {
+    m.claim.mockResolvedValue();
+    const opened = store();
+    m.open.mockResolvedValue(opened);
+    let finishRound = () => {};
+    m.sync.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishRound = () => {
+            opened.finishSync("2026-11-27T10:00:00.000Z");
+            resolve({ status: "synced", firstSync: true, itemCount: 1 });
+          };
+        }),
+    );
+
+    render(<OfflineLibrarySync />);
+    await waitFor(() => expect(m.sync).toHaveBeenCalled());
+    // A first sync still under way: a partial library isn't offered
+    expect(provided).toBeNull();
+
+    await act(async () => finishRound());
+    await waitFor(() =>
+      expect(provided).toEqual({
+        store: opened,
+        lastSyncedAt: "2026-11-27T10:00:00.000Z",
+      }),
+    );
+  });
+
+  it("provides an earlier session's library at once, without a connection to sync", async () => {
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    m.claim.mockResolvedValue();
+    const opened = store("2026-11-20T09:00:00.000Z");
+    m.open.mockResolvedValue(opened);
+    m.sync.mockImplementation(() => new Promise(() => {}));
+
+    render(<OfflineLibrarySync />);
+    await waitFor(() =>
+      expect(provided?.lastSyncedAt).toBe("2026-11-20T09:00:00.000Z"),
+    );
+    expect(m.sync).not.toHaveBeenCalled();
+  });
+
+  it("stops providing the library once a sync finds the session ended", async () => {
+    m.claim.mockResolvedValue();
+    m.open.mockResolvedValue(store("2026-11-20T09:00:00.000Z"));
+    m.sync.mockResolvedValue({ status: "signed-out" });
+
+    render(<OfflineLibrarySync />);
+    await waitFor(() => expect(m.sync).toHaveBeenCalled());
+    await waitFor(() => expect(provided).toBeNull());
   });
 
   it("does nothing while nobody is signed in", async () => {
