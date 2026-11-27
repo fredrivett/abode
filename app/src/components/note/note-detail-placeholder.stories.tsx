@@ -2,13 +2,13 @@ import type { Meta, StoryObj } from "@storybook/nextjs";
 import { useState } from "react";
 import { expect, waitFor } from "storybook/test";
 import { Button } from "@/components/ui/button";
+import { joinNoteTitle } from "@/lib/items/note-title";
 import { NoteDetailLayout } from "./note-detail-layout";
 import { NoteDetailPlaceholder } from "./note-detail-placeholder";
 import { NoteEditor } from "./note-editor";
 
-const SAMPLE = `# Weekly review
-
-Things that went **well** this week:
+const TITLE = "Weekly review";
+const SAMPLE = `Things that went **well** this week:
 
 - Shipped the note item type
 - Cleared the review backlog
@@ -31,7 +31,7 @@ const meta = {
     },
   },
   tags: ["autodocs"],
-  args: { content: SAMPLE, canEdit: true },
+  args: { title: TITLE, content: SAMPLE, canEdit: true },
   decorators: [
     (Story) => (
       <div className="h-[32rem]">
@@ -50,11 +50,18 @@ export const ForOwner: Story = {};
 // For a viewer who can't edit: no status row
 export const ForViewer: Story = { args: { canEdit: false } };
 
+// No title: the first line stays, empty, as it does in the editor
+export const Untitled: Story = { args: { title: null } };
+
 // The editor side of the swap: what NoteDetailView renders (minus saving)
 function EditorView({ canEdit }: { canEdit: boolean }) {
   return (
     <NoteDetailLayout footer={canEdit ? null : undefined}>
-      <NoteEditor content={SAMPLE} editable={canEdit} />
+      <NoteEditor
+        content={joinNoteTitle({ title: TITLE, content: SAMPLE })}
+        editable={canEdit}
+        titleFirst
+      />
     </NoteDetailLayout>
   );
 }
@@ -72,7 +79,7 @@ function SwapDemo() {
         {showEditor ? (
           <EditorView canEdit />
         ) : (
-          <NoteDetailPlaceholder content={SAMPLE} canEdit />
+          <NoteDetailPlaceholder title={TITLE} content={SAMPLE} canEdit />
         )}
       </div>
     </div>
@@ -91,7 +98,7 @@ export const Overlay: Story = {
   render: () => (
     <div className="relative h-full">
       <div data-layer="placeholder" className="absolute inset-0">
-        <NoteDetailPlaceholder content={SAMPLE} canEdit />
+        <NoteDetailPlaceholder title={TITLE} content={SAMPLE} canEdit />
       </div>
       <div
         data-layer="editor"

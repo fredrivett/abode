@@ -12,6 +12,7 @@ type HelpNavItem = {
 
 const helpPages: HelpNavItem[] = [
   { href: "/help/filtering", label: "Filtering" },
+  { href: "/help/notes", label: "Writing notes" },
   { href: "/help/scanning", label: "Scanning documents" },
   { href: "/help/pdfs", label: "Saving PDFs" },
   { href: "/help/highlights", label: "Highlighting articles" },

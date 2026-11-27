@@ -1,5 +1,11 @@
 import { describe, expect, test } from "vitest";
-import { isBlankNote, noteDisplayName, promoteNoteHeading } from "./note-title";
+import {
+  isBlankNote,
+  MAX_ITEM_TITLE_LENGTH,
+  noteDisplayName,
+  promoteNoteHeading,
+  splitNoteTitle,
+} from "./note-title";
 
 describe("promoteNoteHeading", () => {
   test("lifts a leading heading into the title and strips it from the body", () => {
@@ -108,4 +114,14 @@ describe("isBlankNote", () => {
       expect(isBlankNote(markdown)).toBe(false);
     },
   );
+});
+
+describe("splitNoteTitle", () => {
+  test("cuts a title line the item PATCH would reject, keeping the body", () => {
+    const line = `${"a".repeat(MAX_ITEM_TITLE_LENGTH)}bcd`;
+    expect(splitNoteTitle(`# ${line}\n\nbody`)).toEqual({
+      title: "a".repeat(MAX_ITEM_TITLE_LENGTH),
+      content: "body",
+    });
+  });
 });

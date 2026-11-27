@@ -27,6 +27,10 @@ import { LocationPreview } from "./location-preview";
 
 const log = createLogger("dashboard/location-dropzone");
 
+// Shown when an item has no location; the draft dialog's sidebar outline wraps it too
+export const LOCATION_DROP_HINT =
+  "Drop an image here to set location from EXIF data";
+
 type LocationDropzoneProps = {
   itemId: string;
   displayLocation: ItemLocation | null;

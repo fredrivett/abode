@@ -1,4 +1,5 @@
 import { render } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Item } from "@/lib/types/item";
 
@@ -64,6 +65,10 @@ vi.mock("./items-grid", () => ({
 // The central detail dialog is exercised in its own test; stub it here so this
 // list-logic test doesn't pull in the heavy item-card tree, but capture the
 // rename handler the grid passes it so we can assert the wiring.
+// Draft state for the composer; not what this wiring test is about
+vi.mock("./note-draft-context", () => ({
+  NoteDraftProvider: ({ children }: { children: ReactNode }) => children,
+}));
 vi.mock("./_components/central-item-dialog", () => ({
   CentralItemDialog: ({
     onItemRenamed,

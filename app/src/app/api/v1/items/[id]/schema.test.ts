@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { itemPatchSchema, MAX_ITEM_TITLE_LENGTH } from "./schema";
+import { MAX_ITEM_TITLE_LENGTH } from "@/lib/items/note-title";
+import { itemPatchSchema } from "./schema";
 
 describe("itemPatchSchema", () => {
   it("accepts an empty object (all fields optional)", () => {
@@ -31,7 +32,6 @@ describe("itemPatchSchema", () => {
         "",
         "   ",
         "a".repeat(MAX_ITEM_TITLE_LENGTH + 1),
-        null,
         5,
       ]) {
         expect(itemPatchSchema.safeParse({ title }).success).toBe(false);

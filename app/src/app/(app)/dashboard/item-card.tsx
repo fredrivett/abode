@@ -159,7 +159,10 @@ import { ColorHighlightOverlay } from "./_components/color-highlight-overlay";
 import { ColorsBar } from "./_components/colors-bar";
 import { ItemTypeField } from "./_components/item-type-field";
 import { LocationDisplay } from "./_components/location-display";
-import { LocationDropzone } from "./_components/location-dropzone";
+import {
+  LOCATION_DROP_HINT,
+  LocationDropzone,
+} from "./_components/location-dropzone";
 import { SimilarImages } from "./_components/similar-images";
 import { useItemDetailDialog, useItemDialog } from "./item-dialog-context";
 import { ProcessingOverlay } from "./processing-overlay";
@@ -183,6 +186,7 @@ function NoteDetailLoading() {
   const detail = useContext(DetailViewContext);
   return (
     <NoteDetailPlaceholder
+      title={detail?.item.title ?? null}
       content={detail?.item.noteDetails?.content ?? ""}
       canEdit={detail?.canEdit ?? false}
     />
@@ -1537,7 +1541,6 @@ export function ItemDetailBody({
   const username = useUserStore((state) => state.username);
 
   const descriptionRef = useRef<HTMLParagraphElement>(null);
-  const supabase = createClient();
 
   // Tab title for the open item. Off-dashboard (rooms, no provider) the dialog
   // owns it directly. On the dashboard the dialog instead reports its live name
@@ -1917,8 +1920,10 @@ export function ItemDetailBody({
 
     setIsDownloading(true);
     try {
-      const { data, error: downloadError } = await supabase.storage
-        .from("items")
+      // Created on use, so the sidebar renders without Supabase configured
+      // (Storybook); the browser client is a singleton anyway
+      const { data, error: downloadError } = await createClient()
+        .storage.from("items")
         .download(downloadKey);
 
       if (downloadError || !data) {
@@ -2061,8 +2066,11 @@ export function ItemDetailBody({
           <DetailPaneFade animateEntrance={animateEntrance}>
             <NoteDetailView
               itemId={item.id}
+              title={item.title}
               content={item.noteDetails?.content ?? ""}
               canEdit={canEdit}
+              // "" reads as untitled, so the card falls back to the first line
+              onTitleSaved={(title) => onNameChange(title ?? "")}
             />
           </DetailPaneFade>
         ) : isArticle && item.articleDetails?.content ? (
@@ -2282,16 +2290,19 @@ export function ItemDetailBody({
 
       {/* Bottom (mobile) / Right (desktop) - Details */}
       <div className="flex flex-col border-border border-t bg-background md:w-[400px] md:overflow-hidden md:border-t-0 md:border-l">
-        <DialogHeader className="items-start p-6 pb-4">
+        <DialogHeader className={cn("items-start p-6 pb-4", isNote && "pb-0")}>
           <DialogTitle className="sr-only">Item details for {name}</DialogTitle>
-          <EditableTitle
-            value={name}
-            onSubmit={handleNameSubmit}
-            size="xl"
-            isSaving={isSavingName}
-            multiline
-            disabled={!canEdit}
-          />
+          {/* A note's title is its first line, edited in the note itself */}
+          {!isNote && (
+            <EditableTitle
+              value={name}
+              onSubmit={handleNameSubmit}
+              size="xl"
+              isSaving={isSavingName}
+              multiline
+              disabled={!canEdit}
+            />
+          )}
         </DialogHeader>
 
         {/* Opaque scroller so unrastered tiles mid-scroll don't show through */}
@@ -2948,7 +2959,7 @@ export function ItemDetailBody({
                         />
                       ) : (
                         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                          Drop an image here to set location from EXIF data
+                          {LOCATION_DROP_HINT}
                         </p>
                       )}
                     </LocationDropzone>

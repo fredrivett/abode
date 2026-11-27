@@ -80,3 +80,12 @@ export const NOTE_PROSE_CLASS = NOTE_PROSE_PARTS.join(" ");
  */
 export const NOTE_EDITOR_CLASS =
   "focus:outline-none min-h-[1.5rem] any-pointer-coarse:text-[length:max(1rem,var(--note-prose-size,max(0.75rem,0.875em)))]!";
+
+/**
+ * Styles a title-first note's mandatory first line as its title, overriding
+ * the flattened heading size from the shared prose. `[&>*:first-child]` has
+ * real specificity, so it beats the plugin's `:where()` heading rules. Shared
+ * by the editor and its loading placeholder.
+ */
+export const TITLE_HEADING_CLASS =
+  "[&>*:first-child]:font-serif [&>*:first-child]:font-semibold [&>*:first-child]:text-[1.4em] [&>*:first-child]:leading-[1.2] [&>*:first-child]:text-foreground [&>*:first-child]:mb-[0.5em]";

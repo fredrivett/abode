@@ -1,5 +1,10 @@
 import { Editor } from "@tiptap/core";
 import { afterEach, describe, expect, it } from "vitest";
+import {
+  joinNoteTitle,
+  promoteNoteHeading,
+  splitNoteTitle,
+} from "@/lib/items/note-title";
 import { noteEditorExtensions } from "./note-editor";
 
 let editor: Editor | undefined;
@@ -67,5 +72,85 @@ describe("title-first trailing node", () => {
   it("trails a list with a paragraph, never an empty heading", () => {
     const { state } = afterFirstTransaction("# Shopping\n\n- [ ] milk");
     expect(state.doc.lastChild?.type.name).toBe("paragraph");
+  });
+});
+
+describe("saved note title in the title-first editor", () => {
+  // What the detail view saves after loading a note and editing nothing
+  const reloaded = (note: { title: string | null; content: string }) =>
+    splitNoteTitle(roundTrip(joinNoteTitle(note), true).getMarkdown());
+
+  it.each([
+    { title: "Trip ideas", content: "Lisbon, Porto\n\n- [ ] book flights" },
+    { title: "notes_v2 [1] *draft* #3 & <b>", content: "body" },
+    { title: "Untouched body", content: "" },
+    { title: null, content: "## Not the title\n\nbody" },
+    { title: null, content: "" },
+  ])("keeps the title and body as stored: %j", (note) => {
+    expect(reloaded(note)).toEqual(note);
+  });
+
+  it("keeps a title saved with a line break on the title line", () => {
+    expect(reloaded({ title: "Trip\nideas", content: "body" })).toEqual({
+      title: "Trip ideas",
+      content: "body",
+    });
+  });
+
+  it("reads an emptied title line as no title", () => {
+    const editor = roundTrip(
+      joinNoteTitle({ title: "Trip ideas", content: "Lisbon" }),
+      true,
+    );
+    const title = editor.state.doc.firstChild;
+    editor.commands.deleteRange({
+      from: 1,
+      to: 1 + (title?.content.size ?? 0),
+    });
+    expect(splitNoteTitle(editor.getMarkdown())).toEqual({
+      title: null,
+      content: "Lisbon",
+    });
+  });
+});
+
+describe("typed title line", () => {
+  // Text typed into the composer's empty title line
+  function typeTitle(text: string): Editor {
+    const editor = roundTrip("#", true);
+    editor.view.dispatch(editor.state.tr.insertText(text, 1));
+    return editor;
+  }
+
+  it("is stored as typed when the note is created", () => {
+    const typed = "Q&A: notes_v2 *x* [1] a < b";
+    const markdown = typeTitle(typed).getMarkdown();
+    expect(promoteNoteHeading(markdown).title).toBe(typed);
+    // and shows as typed when the saved note opens in the editor
+    expect(
+      splitNoteTitle(
+        roundTrip(
+          joinNoteTitle({ title: typed, content: "" }),
+          true,
+        ).getMarkdown(),
+      ).title,
+    ).toBe(typed);
+  });
+
+  it("drops formatting, which the plain-text title can't keep", () => {
+    const editor = typeTitle("Plan see https://example.com");
+    editor.chain().setTextSelection({ from: 1, to: 5 }).toggleBold().run();
+    expect(editor.getMarkdown()).toBe("# Plan see https://example.com");
+  });
+
+  it("keeps a line break's text in the title", () => {
+    const editor = typeTitle("One");
+    editor
+      .chain()
+      .setTextSelection(4)
+      .setHardBreak()
+      .insertContent("Two")
+      .run();
+    expect(splitNoteTitle(editor.getMarkdown()).title).toBe("One Two");
   });
 });

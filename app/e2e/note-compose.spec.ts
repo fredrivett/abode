@@ -66,12 +66,13 @@ test.describe("Note composer", () => {
       page.getByRole("dialog", { name: /Reading list/i }),
     ).toBeVisible({ timeout: 15_000 });
     const dialog = page.getByRole("dialog");
-    // The body keeps the remaining content but not the title
+    // The saved note shows its title as the editor's first line, once, above
+    // the body, as the composer did
     const body = dialog.locator(".ProseMirror");
     await expect(body).toContainText("Books to read this quarter.", {
       timeout: 15_000,
     });
-    await expect(body).not.toContainText("Reading list");
+    await expect(body.locator("h1")).toHaveText(["Reading list"]);
     await expect(page.getByRole("dialog", { name: /Untitled/i })).toHaveCount(
       0,
     );

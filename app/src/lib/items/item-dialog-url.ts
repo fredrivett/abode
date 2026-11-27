@@ -33,6 +33,20 @@ export function readItemParam(search: string | ReadableParams): string | null {
 }
 
 /**
+ * `?item=new` opens the dialog on the note composer's draft instead of a saved
+ * item, so the expanded composer and the saved note share one dialog.
+ */
+export const NEW_NOTE_ITEM = "new";
+
+/** Whether the URL opens the dialog on the note draft (`?item=new`). */
+export function isNewNoteParam(search: string | ReadableParams): boolean {
+  const params =
+    typeof search === "string" ? new URLSearchParams(search) : search;
+  const all = params.getAll(ITEM_DIALOG_PARAM);
+  return all.length === 1 && all[0] === NEW_NOTE_ITEM;
+}
+
+/**
  * Merge an open item into the current query string, preserving search/filters.
  * Returns the query string without a leading "?".
  */

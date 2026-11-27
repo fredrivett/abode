@@ -93,7 +93,7 @@ More contributor detail — environment plumbing, port allocation, running Supab
 **✅ Done (v0):**
 
 - Capture via website (URL, file, paste, compose) — images, articles, tweets, videos, products, books, notes
-- Markdown notes with a WYSIWYG editor (headings, lists, checklists, quotes, code)
+- Markdown notes with a WYSIWYG editor (headings, lists, checklists, quotes, code); the title is the note's first line, and the composer expands into a full-screen editor that turns into the saved note on save
 - Tweet context: quotes, polls, reply/thread context, X Article previews, long-form posts flagged as truncated
 - Document scanning (in-browser camera, edge detection + auto-capture, B&W/greyscale/colour, multi-page, per-page OCR)
 - PDFs as documents, uploaded or saved from a link (rendered pages, embedded text with OCR only for scanned pages, original kept for download)

@@ -1,42 +1,72 @@
 "use client";
 
+import { Maximize2 } from "lucide-react";
 import posthog from "posthog-js";
-import {
-  type KeyboardEvent,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import { toast } from "sonner";
-import { useDebouncedCallback } from "use-debounce";
+import type { KeyboardEvent } from "react";
 import { LazyNoteEditor } from "@/components/note/lazy-note-editor";
 import { NOTE_PROSE_FONT_SIZE } from "@/components/note/note-prose";
 import { Button } from "@/components/ui/button";
 import { IsLoading } from "@/components/ui/is-loading";
-import { useConfirmAction } from "@/hooks/use-confirm-action";
-import { api } from "@/lib/api-client";
-import { useRevealCreatedItem } from "@/lib/api-hooks";
 import { gridCardStyle } from "@/lib/grid-styles";
-import { isBlankNote } from "@/lib/items/note-title";
-import { viewSavedItemAction } from "@/lib/items/view-saved-item";
-import { createLogger } from "@/lib/logger.client";
-import { useMilestoneStore } from "@/stores/milestone-store";
-
-const log = createLogger("dashboard/note-composer");
-
-// Delay before an edit is persisted to the server draft
-const DRAFT_SAVE_DEBOUNCE_MS = 1000;
-// How long a save waits for draft writes already sent, so a stalled one can't block it
-const DRAFT_WRITE_WAIT_MS = 3000;
-const DRAFT_ENDPOINT = "/api/v1/note-draft";
+import { NEW_NOTE_ITEM } from "@/lib/items/item-dialog-url";
+import { useItemDialog } from "./item-dialog-context";
+import { useNoteDraft } from "./note-draft-context";
 
 type NoteComposerProps = {
-  /** Server-rendered draft to repopulate the composer with on load */
-  initialDraft?: string | null;
   /** Greys out and blocks interaction while a search is in flight */
   disabled?: boolean;
 };
+
+/** "Take a note…" over an empty draft, sized like the title line */
+export function NoteDraftPlaceholder() {
+  return (
+    <span
+      aria-hidden
+      className="pointer-events-none absolute inset-0 font-semibold font-serif text-muted-foreground/70 leading-[1.2]"
+      style={{ fontSize: `calc(1.3 * ${NOTE_PROSE_FONT_SIZE})` }}
+    >
+      Take a note…
+    </span>
+  );
+}
+
+/** The draft's Clear and Save buttons, shown once it has content */
+export function NoteDraftActions({
+  from,
+  disabled,
+}: {
+  from: "card" | "dialog";
+  disabled?: boolean;
+}) {
+  const draft = useNoteDraft();
+  if (!draft || draft.isEmpty) return null;
+  const { clearConfirm, isSaving } = draft;
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={clearConfirm.onClick}
+        {...clearConfirm.hoverProps}
+        disabled={isSaving || disabled}
+        className={
+          clearConfirm.confirming
+            ? "text-destructive hover:text-destructive"
+            : undefined
+        }
+      >
+        {clearConfirm.confirming ? "Confirm clear?" : "Clear"}
+      </Button>
+      <Button
+        size="sm"
+        onClick={() => void draft.save(from)}
+        disabled={isSaving || disabled}
+      >
+        {isSaving ? <IsLoading label="Saving" /> : "Save"}
+      </Button>
+    </>
+  );
+}
 
 /**
  * Inline note composer — the first card in the grid (mymind-style "take a note").
@@ -44,251 +74,72 @@ type NoteComposerProps = {
  * Sized as a 1:1 card matching a note card. Always editable: a placeholder shows
  * when empty, and Save/Clear appear once there's content. The editor is styled to
  * match the note card preview, so typed text looks exactly as it will once saved.
- * Saving creates a note item synchronously and refreshes the grid.
+ * Saving creates a note item synchronously and refreshes the grid. The draft
+ * itself lives in {@link NoteDraftProvider}.
  *
- * In-progress text is auto-saved to a server-side draft (debounced), so it
- * survives reloads and follows the user across devices. The draft is rendered in
- * from the server (no fetch on load) and cleared server-side when the note is
- * saved.
+ * The expand button (bottom right) opens the same draft in the item dialog
+ * (`?item=new`), where saving turns it into the saved note in place.
  */
-export function NoteComposer({ initialDraft, disabled }: NoteComposerProps) {
-  const revealCreatedItem = useRevealCreatedItem();
-  const initialContent = initialDraft ?? "";
-  const [markdown, setMarkdown] = useState(initialContent);
-  // The content the editor mounts with — the initial draft, reset to "" on
-  // save/clear. Editing doesn't change it, so the editor isn't re-synced mid-type.
-  const [editorContent, setEditorContent] = useState(initialContent);
-  const [isSaving, setIsSaving] = useState(false);
-  // Remount the editor to clear its content after a save or clear
-  const [editorKey, setEditorKey] = useState(0);
+export function NoteComposer({ disabled }: NoteComposerProps) {
+  const draft = useNoteDraft();
+  const itemDialog = useItemDialog();
+  if (!draft) return null;
+  // The dialog edits the draft meanwhile; the card catches up when it closes
+  const composingInDialog = itemDialog?.composingNote ?? false;
 
-  // Latest content and what the server holds once the draft writes already
-  // sent land, so we can dedupe writes and flush the current text on page hide
-  // without re-subscribing.
-  const contentRef = useRef(initialContent);
-  const savedContentRef = useRef(initialContent);
-  const dirtyRef = useRef(false);
-  // Counts draft writes sent, so a failed one only rolls back if none came after
-  const draftWriteCountRef = useRef(0);
-  // Every draft write still in flight, so a save can wait for them to land first
-  const draftWritesRef = useRef<Promise<unknown>>(Promise.resolve());
-
-  const isEmpty = isBlankNote(markdown);
-
-  const persistDraft = useDebouncedCallback(async (value: string) => {
-    // Counted as saved once sent: an edit back to the text before this write
-    // must still be written, or this one lands last and brings its text back
-    const previous = savedContentRef.current;
-    savedContentRef.current = value;
-    const writeNumber = ++draftWriteCountRef.current;
-    const write = api.post(DRAFT_ENDPOINT, { content: value });
-    draftWritesRef.current = Promise.all([
-      draftWritesRef.current,
-      write.catch(() => undefined),
-    ]);
-    try {
-      await write;
-      dirtyRef.current = false;
-    } catch (error) {
-      // Unless a newer write has been sent since
-      if (draftWriteCountRef.current === writeNumber) {
-        savedContentRef.current = previous;
-      }
-      // Keep it dirty — a later edit or the page-hide flush will retry
-      log.error({ error }, "Note draft save error");
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (disabled) return;
+    if (e.key === "Escape") {
+      e.preventDefault();
+      draft.clearConfirm.onClick();
+    } else if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      e.preventDefault();
+      void draft.save("card");
     }
-  }, DRAFT_SAVE_DEBOUNCE_MS);
-
-  // Flush a pending draft write on unmount (e.g. client-side navigation away)
-  useEffect(
-    () => () => {
-      persistDraft.flush();
-    },
-    [persistDraft],
-  );
-
-  // Best-effort flush of the sub-debounce tail on tab hide / unload. `sendBeacon`
-  // survives unload (a normal fetch would be cancelled); gated on `dirty` so a
-  // clean composer sends nothing.
-  useEffect(() => {
-    const beaconIfDirty = () => {
-      if (!dirtyRef.current) return;
-      const body = new Blob([JSON.stringify({ content: contentRef.current })], {
-        type: "application/json",
-      });
-      navigator.sendBeacon(DRAFT_ENDPOINT, body);
-    };
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "hidden") beaconIfDirty();
-    };
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    window.addEventListener("pagehide", beaconIfDirty);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.removeEventListener("pagehide", beaconIfDirty);
-    };
-  }, []);
-
-  // Return the composer to its empty state and drop any pending draft write.
-  const resetComposer = useCallback(() => {
-    persistDraft.cancel();
-    contentRef.current = "";
-    savedContentRef.current = "";
-    dirtyRef.current = false;
-    setMarkdown("");
-    setEditorContent("");
-    setEditorKey((k) => k + 1);
-  }, [persistDraft]);
-
-  const handleClear = useCallback(() => {
-    // Only hit the server if a draft was actually persisted
-    if (!isBlankNote(savedContentRef.current)) {
-      void api
-        .delete(DRAFT_ENDPOINT)
-        .catch((error) => log.error({ error }, "Note draft clear error"));
-    }
-    resetComposer();
-  }, [resetComposer]);
-
-  // Two-step confirm so an accidental click can't discard the draft: first
-  // click arms the button ("Confirm clear?"), the second clears.
-  const clearConfirm = useConfirmAction({
-    onConfirm: handleClear,
-    revertDelayMs: 2000,
-  });
-
-  const handleChange = useCallback(
-    (value: string) => {
-      // Any editing disarms a pending "Confirm clear"
-      clearConfirm.reset();
-      setMarkdown(value);
-      contentRef.current = value;
-      // Trailing blank lines don't change the note: the editor adds an empty
-      // paragraph after a draft ending in a list on its first transaction,
-      // which would otherwise rewrite the draft once on load
-      if (value.trimEnd() === savedContentRef.current.trimEnd()) {
-        // Back to the persisted state — or a spurious blank emit from the
-        // editor's heading normalisation on mount/reset. Nothing to save.
-        persistDraft.cancel();
-        dirtyRef.current = false;
-        return;
-      }
-      dirtyRef.current = true;
-      persistDraft(value);
-    },
-    [persistDraft, clearConfirm.reset],
-  );
-
-  const handleSave = useCallback(async () => {
-    if (isEmpty || isSaving) return;
-    setIsSaving(true);
-    // Creating the note clears its server draft, so a draft write landing after
-    // that would bring the saved text back as a draft: drop the pending one, stop
-    // a mid-save tab hide beaconing it, and let ones already sent finish first
-    persistDraft.cancel();
-    dirtyRef.current = false;
-    await Promise.race([
-      draftWritesRef.current,
-      new Promise((resolve) => setTimeout(resolve, DRAFT_WRITE_WAIT_MS)),
-    ]);
-    try {
-      const created = await api.post<{ id: string }>("/api/v1/items/notes", {
-        content: markdown,
-      });
-      posthog.capture("note_created", { source: "composer" });
-      useMilestoneStore.getState().markComplete("write_first_note");
-      void revealCreatedItem(created.id);
-      resetComposer();
-      clearConfirm.reset();
-      toast.success("Note saved", { action: viewSavedItemAction(created.id) });
-    } catch (error) {
-      log.error({ error }, "Note create error");
-      toast.error("Failed to save note");
-      // The text stays in the composer, so resume autosaving it
-      if (contentRef.current !== savedContentRef.current) {
-        dirtyRef.current = true;
-        persistDraft(contentRef.current);
-      }
-    } finally {
-      setIsSaving(false);
-    }
-  }, [
-    isEmpty,
-    isSaving,
-    markdown,
-    persistDraft,
-    revealCreatedItem,
-    resetComposer,
-    clearConfirm.reset,
-  ]);
-
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (disabled) return;
-      if (e.key === "Escape") {
-        e.preventDefault();
-        clearConfirm.onClick();
-      } else if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-        e.preventDefault();
-        void handleSave();
-      }
-    },
-    [disabled, clearConfirm.onClick, handleSave],
-  );
+  };
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: keyboard shortcuts for the inline composer
     <div
-      className="relative flex h-full w-full flex-col overflow-hidden border border-border border-dashed bg-card"
+      className="group relative flex h-full w-full flex-col overflow-hidden border border-border border-dashed bg-card"
       style={{ ...gridCardStyle, padding: "1.25em" }}
       onKeyDown={handleKeyDown}
     >
       <div className="relative min-h-0 flex-1 overflow-y-auto">
-        {isEmpty && (
-          <span
-            aria-hidden
-            className="pointer-events-none absolute inset-0 font-semibold font-serif text-muted-foreground/70 leading-[1.2]"
-            style={{ fontSize: `calc(1.3 * ${NOTE_PROSE_FONT_SIZE})` }}
-          >
-            Take a note…
-          </span>
-        )}
+        {draft.isEmpty && <NoteDraftPlaceholder />}
         <LazyNoteEditor
-          key={editorKey}
-          content={editorContent}
+          key={draft.editorKey}
+          content={draft.editorContent}
           // Read-only while saving: the save sends the click-time text and then
           // empties the composer, so an edit made meanwhile would be lost
-          editable={!disabled && !isSaving}
-          onChange={handleChange}
+          editable={!disabled && !draft.isSaving && !composingInDialog}
+          onChange={draft.onChange}
           className="min-h-full"
           titleFirst
         />
       </div>
-      {!isEmpty && (
-        <div className="mt-[0.75em] flex shrink-0 items-center justify-end gap-[0.5em]">
+      {/* Always rendered so the expand button doesn't shift the editor when
+          the first character makes Save/Clear appear */}
+      <div className="mt-[0.75em] flex shrink-0 items-center justify-end gap-[0.5em]">
+        <NoteDraftActions from="card" disabled={disabled} />
+        {itemDialog && (
           <Button
             variant="ghost"
-            size="sm"
-            onClick={clearConfirm.onClick}
-            {...clearConfirm.hoverProps}
-            disabled={isSaving || disabled}
-            className={
-              clearConfirm.confirming
-                ? "text-destructive hover:text-destructive"
-                : undefined
-            }
+            size="icon-sm"
+            aria-label="Expand note"
+            title="Expand"
+            onClick={() => {
+              posthog.capture("note_composer_expanded");
+              itemDialog.openItem(NEW_NOTE_ITEM);
+            }}
+            disabled={disabled}
+            // Shown on hover/focus; always on touch, which has no hover
+            className="text-muted-foreground any-pointer-coarse:opacity-100 opacity-0 focus-visible:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100"
           >
-            {clearConfirm.confirming ? "Confirm clear?" : "Clear"}
+            <Maximize2 />
           </Button>
-          <Button
-            size="sm"
-            onClick={handleSave}
-            disabled={isSaving || disabled}
-          >
-            {isSaving ? <IsLoading label="Saving" /> : "Save"}
-          </Button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
