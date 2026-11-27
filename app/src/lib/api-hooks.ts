@@ -15,8 +15,11 @@ import {
 import posthog from "posthog-js";
 import { useCallback, useEffect } from "react";
 import type { SimilarImagesResponse } from "@/app/api/v1/items/[id]/similar/route";
+import { useIsOnline } from "@/hooks/use-is-online";
 import { api } from "./api-client";
 import { itemQueryKey } from "./items/use-item";
+import type { TimelineCursor } from "./offline/item-store";
+import { useOfflineLibrary } from "./offline/offline-library-context";
 import {
   chunk,
   DEFAULT_PAGE_SIZE,
@@ -356,11 +359,24 @@ type ItemsInitialData = {
 };
 
 /**
+ * The items list read from the offline library. Its own key, so it never mixes
+ * with the server's pages (page 1 of which may come from a days-old cached
+ * dashboard); under `["items"]`, so invalidating the list re-reads it too.
+ */
+export const OFFLINE_ITEMS_QUERY_KEY = ["items", "offline"] as const;
+
+/**
  * Infinite query hook for paginated items list.
- * Supports SSR hydration via ssrData prop.
+ * Supports SSR hydration via ssrData prop. While offline, once the offline
+ * library has synced, every page comes from it instead: React Query pauses
+ * network queries offline, so the server list would stop at its loaded pages.
  */
 export function useItemsInfinite(ssrData?: ItemsInitialData) {
-  return useInfiniteQuery({
+  const offlineLibrary = useOfflineLibrary();
+  const isOnline = useIsOnline();
+  const readOffline = !isOnline && offlineLibrary !== null;
+
+  const fromServer = useInfiniteQuery({
     queryKey: ITEMS_QUERY_KEY,
     queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams();
@@ -379,7 +395,39 @@ export function useItemsInfinite(ssrData?: ItemsInitialData) {
             pageParams: [null],
           }
         : undefined,
+    // Kept from failing offline, so reconnecting doesn't surface a stale error
+    enabled: !readOffline,
   });
+
+  const fromOfflineLibrary = useInfiniteQuery({
+    queryKey: OFFLINE_ITEMS_QUERY_KEY,
+    queryFn: async ({ pageParam }): Promise<ItemsPageResponse> => {
+      if (!offlineLibrary) return { items: [], cursor: null, hasMore: false };
+      const { store } = offlineLibrary;
+      const items = await store.readItems({
+        limit: DEFAULT_PAGE_SIZE + 1,
+        after: pageParam ?? undefined,
+      });
+      return {
+        items: items.slice(0, DEFAULT_PAGE_SIZE),
+        cursor: null,
+        hasMore: items.length > DEFAULT_PAGE_SIZE,
+        ...(pageParam === null && { total: await store.countItems() }),
+      };
+    },
+    initialPageParam: null as TimelineCursor | null,
+    getNextPageParam: (lastPage): TimelineCursor | undefined => {
+      const last = lastPage.items.at(-1);
+      return lastPage.hasMore && last
+        ? { addedAt: last.addedAt, id: last.id }
+        : undefined;
+    },
+    enabled: readOffline,
+    // A local read: runs with no connection
+    networkMode: "always",
+  });
+
+  return readOffline ? fromOfflineLibrary : fromServer;
 }
 
 /**
