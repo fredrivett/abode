@@ -543,6 +543,8 @@ const CASES: Case[] = [
     body: () => ({ content: "# My note\nbody" }),
   },
   { route: "v1/items", method: "GET", name: "list items" },
+  { route: "v1/items/changes", method: "GET", name: "sync item changes" },
+  { route: "v1/items/ids", method: "GET", name: "list item ids" },
   {
     route: "v1/items",
     method: "DELETE",

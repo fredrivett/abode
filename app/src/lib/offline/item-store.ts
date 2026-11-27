@@ -15,14 +15,31 @@ const CARDS = "cards";
 const META = "meta";
 const TIMELINE_INDEX = "timeline";
 const OWNER_KEY = "owner";
+const SYNC_STATE_KEY = "sync";
+
+/** Where background sync got to (see `offline/sync`) */
+export type SyncState = {
+  /** The changes cursor to resume from (opaque, from `/api/v1/items/changes`) */
+  cursor: string;
+  /** When the last full round finished; null while the first is under way */
+  lastSyncedAt: string | null;
+};
 
 /** Position on the timeline, newest first: `addedAt` then `id`, both descending */
 export type TimelineCursor = Pick<Item, "addedAt" | "id">;
 
 export type OfflineItemStore = {
-  /** Adds or replaces items; dropped once the store belongs to someone else */
+  /**
+   * Adds or replaces items, keeping a stored copy saved later than the one
+   * given (a slow response landing late). Dropped once the store belongs to
+   * someone else, as every write is.
+   */
   putItems: (items: Item[]) => Promise<void>;
   removeItems: (ids: string[]) => Promise<void>;
+  countItems: () => Promise<number>;
+  listIds: () => Promise<string[]>;
+  getSyncState: () => Promise<SyncState | null>;
+  setSyncState: (state: SyncState) => Promise<void>;
   /**
    * Up to `limit` items in timeline order (as `ITEM_TIMELINE_ORDER_BY`),
    * starting after `after`. Empty once the store belongs to someone else.
@@ -33,6 +50,14 @@ export type OfflineItemStore = {
   }) => Promise<Item[]>;
   close: () => void;
 };
+
+function isSavedAfter(a: Item, b: Item): boolean {
+  return (
+    a.updatedAt !== undefined &&
+    b.updatedAt !== undefined &&
+    Date.parse(a.updatedAt) > Date.parse(b.updatedAt)
+  );
+}
 
 function done<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -111,7 +136,13 @@ export async function openOfflineItemStore(
       const tx = await ownedTransaction("readwrite");
       if (!tx) return;
       const cards = tx.objectStore(CARDS);
-      for (const item of items) cards.put(item);
+      for (const item of items) {
+        const stored = cards.get(item.id);
+        stored.onsuccess = () => {
+          const existing: Item | undefined = stored.result;
+          if (!existing || !isSavedAfter(existing, item)) cards.put(item);
+        };
+      }
       await committed(tx);
     },
 
@@ -120,6 +151,34 @@ export async function openOfflineItemStore(
       if (!tx) return;
       const cards = tx.objectStore(CARDS);
       for (const id of ids) cards.delete(id);
+      await committed(tx);
+    },
+
+    async countItems() {
+      const tx = await ownedTransaction("readonly");
+      return tx ? done(tx.objectStore(CARDS).count()) : 0;
+    },
+
+    async listIds() {
+      const tx = await ownedTransaction("readonly");
+      if (!tx) return [];
+      const keys = await done(tx.objectStore(CARDS).getAllKeys());
+      return keys.filter((key) => typeof key === "string");
+    },
+
+    async getSyncState() {
+      const tx = await ownedTransaction("readonly");
+      if (!tx) return null;
+      const state: SyncState | undefined = await done(
+        tx.objectStore(META).get(SYNC_STATE_KEY),
+      );
+      return state ?? null;
+    },
+
+    async setSyncState(state) {
+      const tx = await ownedTransaction("readwrite");
+      if (!tx) return;
+      tx.objectStore(META).put(state, SYNC_STATE_KEY);
       await committed(tx);
     },
 
