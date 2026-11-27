@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { LAUNCH_PAGE } from "@/lib/pwa/launch";
 import { isProtectedPath } from "@/lib/supabase/middleware";
 import manifest from "./manifest";
 
@@ -10,8 +11,9 @@ describe("manifest", () => {
     expect(m.id).toBe("/");
   });
 
-  it("launches straight into the app, not the redirecting homepage", () => {
-    expect(m.start_url).not.toBe("/");
-    expect(isProtectedPath(m.start_url ?? "")).toBe(true);
+  it("launches on the precached skeleton, not the redirecting homepage", () => {
+    expect(m.start_url).toBe(LAUNCH_PAGE);
+    // Signed out, the skeleton still loads (and then hands on to login)
+    expect(isProtectedPath(LAUNCH_PAGE)).toBe(false);
   });
 });

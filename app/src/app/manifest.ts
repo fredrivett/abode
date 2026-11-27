@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { APP_NAME } from "@/lib/app";
-import { ROUTES } from "@/lib/routes";
+import { LAUNCH_PAGE } from "@/lib/pwa/launch";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -10,9 +10,11 @@ export default function manifest(): MetadataRoute.Manifest {
     // Pinned to the original start_url ("/", which browsers used as the id)
     // so moving start_url doesn't turn existing installs into a different app
     id: "/",
-    // Straight to the app: "/" redirects signed-in users here, costing every
-    // launch an extra round trip. Signed-out users are sent on to login
-    start_url: ROUTES.DASHBOARD,
+    // The dashboard's skeleton, which the service worker serves from its
+    // precache so a launch paints straight away, then moves on to the
+    // dashboard (signed-out users are sent on to login). Not "/", which
+    // redirects signed-in users and would cost every launch a round trip
+    start_url: LAUNCH_PAGE,
     scope: "/",
     display: "standalone",
     background_color: "#1f1f1f",
