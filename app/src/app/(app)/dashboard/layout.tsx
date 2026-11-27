@@ -1,11 +1,13 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
+import { DashboardHeaderSkeleton } from "@/components/layout/dashboard-header/skeleton";
 import { OnboardingWrapper } from "@/components/onboarding";
 import { InstallAppBanner } from "@/components/pwa/install-app-banner";
 import db from "@/lib/db";
 import { getOAuthMetadata } from "@/lib/supabase/user-metadata";
 import { DashboardDropzone } from "../_components/dashboard-dropzone";
+import { DashboardShell } from "./dashboard-shell";
 
 /**
  * Layout wrapping all dashboard pages.
@@ -51,14 +53,15 @@ export default async function DashboardLayout({
       }}
     >
       <DashboardDropzone>
-        <div className="flex min-h-0 flex-1 flex-col bg-background">
-          <Suspense fallback={<div className="h-16" />}>
-            <DashboardHeader showSearch />
-          </Suspense>
-          <div className="flex w-full flex-1 flex-col overflow-hidden px-4 py-2">
-            {children}
-          </div>
-        </div>
+        <DashboardShell
+          header={
+            <Suspense fallback={<DashboardHeaderSkeleton />}>
+              <DashboardHeader showSearch />
+            </Suspense>
+          }
+        >
+          {children}
+        </DashboardShell>
         <InstallAppBanner />
       </DashboardDropzone>
     </OnboardingWrapper>

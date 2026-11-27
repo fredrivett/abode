@@ -5,6 +5,7 @@ import withSerwistInit from "@serwist/next";
 import type { NextConfig } from "next";
 import "./src/env";
 import { extractUiLabels } from "./src/lib/analytics/extract-ui-labels";
+import { LAUNCH_PAGE } from "./src/lib/pwa/launch";
 import { securityHeadersConfig } from "./src/lib/security-headers";
 
 let revision: string;
@@ -41,7 +42,12 @@ try {
 const withSerwist = withSerwistInit({
   swSrc: "src/app/sw.ts",
   swDest: "public/sw.js",
-  additionalPrecacheEntries: [{ url: "/~offline", revision }],
+  additionalPrecacheEntries: [
+    { url: "/~offline", revision },
+    // Precached, so the installed app opens on it straight away. Its CSS and
+    // fonts are build assets, precached with it
+    { url: LAUNCH_PAGE, revision },
+  ],
   disable: process.env.NODE_ENV === "development",
 });
 
