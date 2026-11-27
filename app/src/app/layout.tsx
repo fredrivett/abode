@@ -10,6 +10,7 @@ import { SessionStateReset } from "@/components/session/session-state-reset";
 import { PostHogIdentity } from "@/components/tracking/posthog-identity";
 import { APP_NAME } from "@/lib/app";
 import { branchTitlePrefix } from "@/lib/branch-title";
+import { STARTUP_IMAGES } from "@/lib/pwa/startup-images";
 import { QueryProvider } from "@/lib/query-client";
 import { X_HANDLE } from "@/lib/social";
 import { THEME_INIT_SCRIPT } from "@/lib/theme-script";
@@ -74,7 +75,15 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "default",
     title: APP_NAME,
+    startupImage: STARTUP_IMAGES.map(({ name, media }) => ({
+      // Bump v when the images change: browsers and CDNs cache them by URL
+      url: `/icons/startup/${name}?v=1`,
+      media,
+    })),
   },
+  // appleWebApp.capable emits only the unprefixed mobile-web-app-capable, and
+  // iOS shows the startup images above only with the apple- prefixed tag
+  other: { "apple-mobile-web-app-capable": "yes" },
   formatDetection: {
     telephone: false,
   },
